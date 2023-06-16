@@ -1,0 +1,22 @@
+pragma cashscript ^0.8.0;
+
+contract NftBuyOrder(bytes20 maker, bytes category, bytes commitment, bytes feeToLockingBytecode) {
+  function spend() {
+    require(this.activeInputIndex == 0);
+    bytes lockingBytecodeOfMaker = new LockingBytecodeP2PKH(maker);
+    if(lockingBytecodeOfMaker != tx.inputs[1].lockingBytecode) {
+      require(lockingBytecodeOfMaker == tx.outputs[0].lockingBytecode);
+      require(tx.outputs[0].tokenCategory == category);
+      if(commitment.length != 0) { // only want to buy a specific nft
+        require(tx.outputs[0].nftCommitment == commitment);
+      }
+      int fee = 3 * tx.inputs[0].value / 1000;
+      if(fee > 2000) { // collect fee when it's not dust
+        require(tx.outputs[1].lockingBytecode == feeToLockingBytecode);
+        require(tx.outputs[1].value == fee);
+      }
+    } // or else (if tx.inputs[1] is owned by maker), maker can do anything
+  }
+}
+
+

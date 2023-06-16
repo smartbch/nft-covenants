@@ -1,0 +1,18 @@
+pragma cashscript ^0.8.0;
+
+contract NftSellOrder(int amount, bytes20 maker, bytes feeLockingBytecode) {
+  function spend() {
+    require(this.activeInputIndex == 0);
+    bytes lockingBytecodeOfMaker = new LockingBytecodeP2PKH(maker);
+    if(lockingBytecodeOfMaker != tx.inputs[1].lockingBytecode) {
+      require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(maker));
+      require(tx.outputs[0].value == amount);
+      int fee = 3 * amount / 1000;
+      if(fee > 2000) { // collect fee when it's not dust
+        require(tx.outputs[1].lockingBytecode == feeLockingBytecode);
+        require(tx.outputs[1].value == fee);
+      }
+    } // or else (if tx.inputs[1] is owned by maker), maker can do anything
+  }
+}
+

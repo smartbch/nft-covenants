@@ -1,0 +1,31 @@
+pragma cashscript ^0.8.0;
+
+contract EnglishAuction(bytes20 maker, bytes4 endTime, bytes8 minValue, bytes20 bidder) {
+  function spend(bytes newBidder) {
+    require(this.activeInputIndex == 0);
+    require(tx.outputs[0].tokenCategory == tx.inputs[0].tokenCategory);
+    require(tx.outputs[0].nftCommitment == tx.inputs[0].nftCommitment);
+    if(newBidder.length == 20) { // newBidder offers a larger value
+      bytes newContract = 0x14 + newBidder + this.activeBytecode.split(21)[1];
+      bytes23 newContractLock = new LockingBytecodeP2SH20(hash160(newContract));
+      require(tx.outputs[0].lockingBytecode == newContractLock);
+      require(tx.outputs[0].value > tx.inputs[0].value); // higher price
+      // return the old bidder's money:
+      if(tx.outputs[0].value >= int(minValue)) { // after first successful bid
+        require(tx.outputs[1].lockingBytecode == new LockingBytecodeP2PKH(bidder));
+        require(tx.outputs[1].value == tx.inputs[0].value);
+      }
+    } else { // has passed endTime, this auction can be finished
+      require(tx.time >= int(endTime));
+      if(tx.inputs[1].value >= int(minValue)) { // this auction is successful
+        require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(bidder)); //bidder gets NFT
+        require(tx.outputs[1].lockingBytecode == new LockingBytecodeP2PKH(maker)); //maker gets BCH
+        require(tx.outputs[1].value == tx.inputs[1].value);
+      } else { // only maker can spend this covenant if auction failed
+        bytes lockingBytecodeOfMaker = new LockingBytecodeP2PKH(maker);
+        require(tx.inputs[1].lockingBytecode == lockingBytecodeOfMaker);
+      }
+    }
+  }
+}
+

@@ -1,0 +1,18 @@
+pragma cashscript ^0.8.0;
+
+contract DutchAuction(int startTime, int startPrice, int dropPerSec, int minPrice, bytes20 maker) {
+  function spend(int medianTimePast) {
+    require(this.activeInputIndex == 0);
+    require(tx.time >= medianTimePast);
+    require(medianTimePast > startTime);
+    int price = startPrice - (medianTimePast - startTime) * dropPerSec;
+    if(price > minPrice) { // maker gets BCH
+      require(tx.outputs[0].value >= price);
+      require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(maker));
+    } else { // only maker can spend this covenant if auction failed
+      bytes lockingBytecodeOfMaker = new LockingBytecodeP2PKH(maker);
+      require(tx.inputs[1].lockingBytecode == lockingBytecodeOfMaker);
+    }
+  }
+}
+
